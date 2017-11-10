@@ -1,0 +1,166 @@
+{
+    "id": null,
+    "namespace": null,
+    "objects": {
+        "deployments": {
+            "specification": {
+                "apiVersion": "apps/v1beta1",
+                "kind": "Deployment",
+                "metadata": {
+                    "annotations": {
+                        "description": "Defines how to deploy Heketi"
+                    },
+                    "labels": {
+                        "glusterfs": "heketi-deployment"
+                    },
+                    "name": "heketi"
+                },
+                "spec": {
+                    "replicas": 1,
+                    "strategy": {
+                        "rollingUpdate": {
+                            "maxSurge": 0,
+                            "maxUnavailable": 1
+                        },
+                        "type": "RollingUpdate"
+                    },
+                    "selector": {
+                        "matchLabels": {
+                            "name": "heketi"
+                        }
+                    },
+                    "template": {
+                        "metadata": {
+                            "labels": {
+                                "glusterfs": "heketi-pod",
+                                "name": "heketi"
+                            },
+                            "name": "heketi"
+                        },
+                        "spec": {
+                            "containers": [
+                                {
+                                    "env": [
+                                        {
+                                            "name": "HEKETI_EXECUTOR",
+                                            "value": "ssh"
+                                        },
+                                        {
+                                            "name": "HEKETI_SSH_USER",
+                                            "value": "root"
+                                        },
+                                        {
+                                            "name": "HEKETI_SSH_PORT",
+                                            "value": "22"
+                                        },
+                                        {
+                                            "name": "HEKETI_SSH_KEYFILE",
+                                            "value": "/root/.ssh/id_rsa"
+                                        },
+                                        {
+                                            "name": "HEKETI_ADMIN_KEY",
+                                            "valueFrom": {
+                                                "secretKeyRef": {
+                                                    "name": "heketi-secret",
+                                                    "key": "key"
+                                                }
+                                            }
+                                        }
+                                    ],
+                                    "image": "heketi/heketi:5",
+                                    "imagePullPolicy": "Always",
+                                    "livenessProbe": {
+                                        "httpGet": {
+                                            "path": "/hello",
+                                            "port": 8080
+                                        },
+                                        "initialDelaySeconds": 15,
+                                        "timeoutSeconds": 3
+                                    },
+                                    "name": "heketi",
+                                    "ports": [
+                                        {
+                                            "containerPort": 8080
+                                        }
+                                    ],
+                                    "readinessProbe": {
+                                        "httpGet": {
+                                            "path": "/hello",
+                                            "port": 8080
+                                        },
+                                        "initialDelaySeconds": 3,
+                                        "timeoutSeconds": 3
+                                    },
+                                    "volumeMounts": [
+                                        {
+                                            "mountPath": "/root/.ssh",
+                                            "name": "heketi-ssh-key"
+                                        },
+                                        {
+                                            "mountPath": "/var/lib/heketi",
+                                            "name": "heketi-db"
+                                        }
+                                    ]
+                                }
+                            ],
+                            "nodeSelector": {
+                                "storagenode": "glusterfs"
+                            },
+                            "terminationGracePeriodSeconds": 0,
+                            "volumes": [
+                                {
+                                    "hostPath": {
+                                        "path": "/data/heketi/.ssh"
+                                    },
+                                    "name": "heketi-ssh-key"
+                                },
+                                {
+                                    "hostPath": {
+                                        "path": "/data/heketi/db"
+                                    },
+                                    "name": "heketi-db"
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "services": {
+            "specification": {
+                "apiVersion": "v1",
+                "kind": "Service",
+                "metadata": {
+                    "annotations": {
+                        "description": "Exposes Heketi Service",
+                        "tags": "kubernetes,k8s,heketi",
+                        "traefik.backend.loadbalancer": "wrr",
+                        "traefik.backend.weight": "10",
+                        "traefik.enable": "true",
+                        "traefik.frontend.entryPoints": "http,https",
+                        "traefik.frontend.rule": "Host:heketi-api.example.com",
+                        "traefik.tags": "kubernetes"
+                    },
+                    "labels": {
+                        "deploy-heketi": "support",
+                        "glusterfs": "heketi-service"
+                    },
+                    "name": "heketi"
+                },
+                "spec": {
+                    "ports": [
+                        {
+                            "name": "heketi",
+                            "port": 8080,
+                            "targetPort": 8080
+                        }
+                    ],
+                    "selector": {
+                        "name": "heketi"
+                    },
+                    "type": "NodePort"
+                }
+            }
+        }
+    }
+}

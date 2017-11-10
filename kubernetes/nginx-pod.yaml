@@ -1,0 +1,17 @@
+kind: Pod
+apiVersion: v1
+metadata:
+  name: nginx-with-pv
+spec:
+  containers:
+    - name: frontend
+      image: nginx:stable-alpine
+      volumeMounts:
+      - mountPath: "/usr/share/nginx/html"
+        name: pv
+  nodeSelector:
+    storagenode: "glusterfs"
+  volumes:
+    - name: pv
+      persistentVolumeClaim:
+        claimName: test-claim
